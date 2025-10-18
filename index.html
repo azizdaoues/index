@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Connexion Sécurisée - MFA par Email</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: linear-gradient(to right, #1f4037, #99f2c8); display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;}
+    .login-container { background-color: rgba(255, 255, 255, 0.95); padding: 30px; border-radius: 15px; box-shadow: 0 0 15px rgba(0,0,0,0.2); width: 300px; text-align: center;}
+    .login-container h2 { margin-bottom: 20px; color: #333;}
+    input[type="text"], input[type="password"], input[type="number"] { width: 90%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px;}
+    button { background-color: #1f4037; color: white; padding: 10px; width: 100%; border: none; border-radius: 5px; margin-top: 10px; cursor: pointer;}
+    button:hover { background-color: #16352e; }
+    .hidden { display: none; }
+    .error { color: red; font-size: 0.9em; }
+    .success { color: green; font-weight: bold; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <div class="login-container" id="login-box">
+    <h2>Connexion</h2>
+    <input type="text" id="username" placeholder="Nom d'utilisateur" required>
+    <input type="password" id="password" placeholder="Mot de passe" required>
+    <div id="error-msg" class="error"></div>
+    <button onclick="login()">Se connecter</button>
+  </div>
+
+  <div class="login-container hidden" id="mfa-box">
+    <h2>Code MFA</h2>
+    <p>Un code a été envoyé par email.</p>
+    <input type="number" id="mfa-code" placeholder="Code à 6 chiffres">
+    <div id="mfa-error" class="error"></div>
+    <button onclick="verifyMFA()">Vérifier</button>
+  </div>
+
+  <div class="login-container hidden" id="success-box">
+    <h2 id="welcome-text"></h2>
+    <p class="success">✅ Connexion réussie avec MFA par Email</p>
+  </div>
+
+<script>
+let currentUser = null;
+
+async function login() {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const errorBox = document.getElementById("error-msg");
+
+  const res = await fetch("/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({username, password})
+  });
+
+  if (res.ok) {
+    currentUser = username;
+    document.getElementById("login-box").classList.add("hidden");
+    document.getElementById("mfa-box").classList.remove("hidden");
+    errorBox.innerText = "";
+  } else {
+    const err = await res.json();
+    errorBox.innerText = err.message || "Erreur d'authentification";
+  }
+}
+
+async function verifyMFA() {
+  const code = document.getElementById("mfa-code").value.trim();
+  const mfaError = document.getElementById("mfa-error");
+
+  const res = await fetch("/verify-mfa", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({username: currentUser, code})
+  });
+
+  const data = await res.json();
+  if (res.ok) {
+    document.getElementById("mfa-box").classList.add("hidden");
+    document.getElementById("success-box").classList.remove("hidden");
+    document.getElementById("welcome-text").innerText =
+      "Bienvenue " + data.role + " 👋";
+  } else {
+    mfaError.innerText = data.message || "Code incorrect";
+  }
+}
+</script>
+
+</body>
+</html>
